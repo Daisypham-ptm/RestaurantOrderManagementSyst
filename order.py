@@ -1,7 +1,7 @@
 from datetime import datetime
 from db import get_connection
 
-def place_order(customer_id):
+def place_order(user_id):
     """
     Places a new order for the given customer ID.
     USE CASE: place order
@@ -12,11 +12,11 @@ def place_order(customer_id):
 
     # Cart
     cur.execute("""
-        SELECT c.item_id, c.quanity, m.price, m.item_name
+        SELECT c.item_id, c.quantity, m.price, m.item_name
         FROM cart_items c
         JOIN menu_items m ON c.item_id= m.item_id
         WHERE c.user_id= ?
-    """, (customer_id,))
+    """, (user_id,))
     cart_items= cur.fetchall()
 
     if not cart_items: 
@@ -37,20 +37,20 @@ def place_order(customer_id):
     print(" 2. Payment online")
     payment_choice= input("Choice (1/2): ")
 
-    # total price calculation
-    total_price= sum(item[2]* item[3] for item in cart_items)
+    # total amount calculation
+    total_amount= sum(item[2]* item[3] for item in cart_items)
 
     # create order 
     cur.execute("""
         INSERT INTO orders 
-        (user_id, receiver_name, receiver_phone, receiver_address, payment_method, total_price, order_time, status)
+        (user_id, receiver_name, receiver_phone, receiver_address, payment_method, total_amount, order_date, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
     """, (
-        customer_id,
+        user_id,
         receiver_name,
         receiver_phone,
         receiver_address,
-        total_price,
+        total_amount,
         payment_choice,
         "new",
         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -81,29 +81,27 @@ def place_order(customer_id):
     cur.execute("""
         DELETE FROM cart_items
         WHERE user_id= ?
-    """, (customer_id,)
-    )
+    """, (user_id,))
 
     conn.commit()
     conn.close()
 
     print(" Order successfully")
     print(f" Order ID: {order_id}")
-    print( f" Total Price: ${total_price:.2f}")
+    print( f" Total Amount: ${total_amount:.2f}")
      
 
 
-def view_orders(customer_id):
+def view_orders(user_id):
     conn= get_connection()
     cur= conn.cursor()
 
-    cur.exxecute("""
-        SELECT order_id, status, total_price, order_time
+    cur.execute("""
+        SELECT order_id, status, total_amount, order_date
         FROM orders 
         WHERE user_id= ?
-        ORDER BY order_time DESC
-    """,(customer_id))
-
+        ORDER BY order_date DESC
+    """,(user_id,))
     orders= cur.fetchall()
     conn.close()
 
@@ -119,9 +117,9 @@ def view_orders(customer_id):
               f"Total Price: {order[2]:.2f} |"
               f"Order Time: {order[3]}"
               )
-        
-    
-def cancel_order(customer_id):
+
+
+def cancel_order(user_id):
     conn= get_connection()
     cur= conn.cursor()
 
@@ -131,7 +129,7 @@ def cancel_order(customer_id):
         SELECT status
         FROM orders
         WHERE order_id= ? AND user_id= ?
-    """, (order_id, customer_id))
+    """, (order_id, user_id,))
 
     result= cur.fetchone()
 
@@ -149,24 +147,23 @@ def cancel_order(customer_id):
         UPDATE orders
         SET status= "canceled"
         WHERE order_id= ? AND user_id= ?
-        """, (order_id))
+        """, (order_id, user_id,))
     
     conn.commit()
     conn.close()
     print(" Order canceled successfully.")
 
 
-def view_order_history(customer_id):
+def view_order_history(user_id):
     conn= get_connection()
     cur= conn.cursor()
 
     cur.execute("""
-        SRLECT order_id, status, total_price, order_time
+        SELECT order_id, status, total_amount, order_date
         FROM orders
         WHERE user_id=?
-        ORDER BY order_time DESC
-        """, (customer_id,))
-    
+        ORDER BY order_date DESC
+        """, (user_id,))
     orders= cur.fetchall()
     conn.close()
 
@@ -179,7 +176,7 @@ def view_order_history(customer_id):
         print(
             f"Order ID: {order[0]} |"
             f"Status: {order[1]} |"
-            f"Total Price: {order[2]:.2f} |"
+            f"Total Amount: {order[2]:.2f} |"
             f"Order Time: {order[3]}"
         )
 
